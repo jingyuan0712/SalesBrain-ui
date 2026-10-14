@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
 import { demoData } from '../../data/demo/demoData.ts';
 import { getOrderProgress, getHistoricalQuotes, quoteDisclosure } from '../../domain/demoRules.ts';
@@ -8,19 +8,28 @@ export function OrdersPage() {
   const [anomaly, setAnomaly] = useState('');
   const [unknown, setUnknown] = useState(false);
   const [source, setSource] = useState(false);
+  const detailRef = useRef<HTMLElement>(null);
+  const [detailRequest, setDetailRequest] = useState(0);
+  useEffect(() => {
+    if (!detailRequest) return;
+    const detail = detailRef.current;
+    detail?.focus({ preventScroll: true });
+    detail?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+  }, [detailRequest]);
   const result = getOrderProgress(query.orderId.trim().toUpperCase(), demoData, unknown ? { shipments: false } : {});
   const listed = demoData.orders.filter(o => (!query.selectedCustomerId || o.customer_id === query.selectedCustomerId) && (!query.selectedProductId || o.product_id === query.selectedProductId)).filter(o => {
     const r = getOrderProgress(o.id)!;
     return !anomaly || (anomaly === 'approval' ? r.stages.approval === '主管覆核中' : anomaly === 'shipment' ? !r.shipments?.length : anomaly === 'invoice' ? !!r.shipments?.length && !r.invoices?.length : !!r.invoices?.length && !r.receipts?.length);
   });
-  function selectOrder(id: string) {
+  function selectOrder(id: string, showDetails = false) {
     const order = demoData.orders.find(o => o.id === id);
     updateQuery({ orderId: id, ...(order ? { selectedCustomerId: order.customer_id, selectedProductId: order.product_id } : {}) });
+    if (showDetails) setDetailRequest(request => request + 1);
   }
   return <><div className="filter-bar"><label className="filter-field"><span>訂單 ID 搜尋</span><input className="input" aria-label="訂單 ID 搜尋" value={query.orderId} onChange={e => selectOrder(e.target.value.toUpperCase())} placeholder="例如 O007" /></label><SharedFilters />
     <Select label="異常類型" value={anomaly} onChange={setAnomaly} options={[{ value: '', label: '全部訂單' }, { value: 'approval', label: '待簽核' }, { value: 'shipment', label: '未出貨' }, { value: 'invoice', label: '已出貨未請款' }, { value: 'receipt', label: '已請款未收款' }]} /></div>
     <div className="action-row">{['O007', 'O003', 'O008'].map(id => <button className={`btn ${query.orderId === id ? 'btn-primary' : 'btn-secondary'}`} key={id} onClick={() => selectOrder(id)}>{id}</button>)}<label className="checkbox-label"><input type="checkbox" checked={unknown} onChange={e => setUnknown(e.target.checked)} />示範出貨來源不可用</label></div>
-    {result ? <section className="card order-card"><h2>{result.order.id} · {customerName(result.order.customer_id)}</h2><p>{productName(result.order.product_id)} · {result.order.quantity} 盒 · {money(result.order.amount)}</p>
+    {result ? <section ref={detailRef} tabIndex={-1} aria-labelledby="order-details-title" className="card order-card"><h2 id="order-details-title">{result.order.id} · {customerName(result.order.customer_id)}</h2><p>{productName(result.order.product_id)} · {result.order.quantity} 盒 · {money(result.order.amount)}</p>
       <ol className="order-stages">{Object.entries(result.stages).map(([key, value], i) => <li key={key} className={value === '未知' ? 'unknown' : value.startsWith('已') ? 'complete' : 'waiting'}><span>{i + 1}</span><h3>{['訂單／簽核', '出貨', '請款', '收款'][i]}</h3><strong>{value}</strong></li>)}</ol>
       {result.order.block_reason && <p className="notice">已記錄卡點：{result.order.block_reason} · {result.approvals?.[0]?.updated_at}</p>}
       <p>請款金額：{result.invoiced === null ? '未知' : money(result.invoiced)} · 收款：{result.received === null ? '未知' : money(result.received)} · 未收餘額：{result.outstanding === null ? '未建立應收或資料未知' : money(result.outstanding)}</p>
@@ -29,7 +38,7 @@ export function OrdersPage() {
       <SourceNote systems="SAP／簽核／出貨／財務對帳" ids={[result.order.id, ...(result.approvals?.map(a => a.id) ?? []), ...(result.shipments?.map(s => s.id) ?? []), ...(result.invoices?.map(i => i.id) ?? []), ...(result.receipts?.map(r => r.id) ?? [])]} basis="四段單據獨立關聯；未收款不等於未出貨，餘額大於零且快照日期超過到期日才逾期。" />
     </section> : <Empty>查無 {query.orderId || '指定'} 訂單，請輸入完整 ID。</Empty>}
     <div className="section-heading"><h2>符合條件的訂單 · {listed.length} 筆</h2><button className="btn btn-secondary" onClick={() => { updateQuery({ selectedCustomerId: '', selectedProductId: '' }); setAnomaly(''); }}>清除列表篩選</button></div>
-    {listed.length ? <div className="table-container" role="region" aria-label="訂單列表" tabIndex={0}><table className="responsive-table" role="table" aria-label="訂單列表"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">訂單</th><th role="columnheader" scope="col">客戶／產品</th><th role="columnheader" scope="col">日期</th><th role="columnheader" scope="col">狀態</th><th role="columnheader" scope="col">操作</th></tr></thead><tbody role="rowgroup">{listed.map(o => <tr role="row" key={o.id}><td role="cell" data-label="訂單"><div className="table-cell-value">{o.id}</div></td><td role="cell" data-label="客戶／產品"><div className="table-cell-value">{customerName(o.customer_id)}<small className="table-id">{productName(o.product_id)}</small></div></td><td role="cell" data-label="日期"><div className="table-cell-value">{o.created_at.slice(0, 10)}</div></td><td role="cell" data-label="狀態"><div className="table-cell-value">{Object.values(getOrderProgress(o.id)!.stages).join('／')}</div></td><td role="cell" data-label="操作"><div className="table-cell-value"><button className="btn btn-secondary btn-sm" onClick={() => selectOrder(o.id)}>查看</button></div></td></tr>)}</tbody></table></div> : <Empty />}
+    {listed.length ? <div className="table-container" role="region" aria-label="訂單列表" tabIndex={0}><table className="responsive-table" role="table" aria-label="訂單列表"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">訂單</th><th role="columnheader" scope="col">客戶／產品</th><th role="columnheader" scope="col">日期</th><th role="columnheader" scope="col">狀態</th><th role="columnheader" scope="col">操作</th></tr></thead><tbody role="rowgroup">{listed.map(o => <tr role="row" key={o.id}><td role="cell" data-label="訂單"><div className="table-cell-value">{o.id}</div></td><td role="cell" data-label="客戶／產品"><div className="table-cell-value">{customerName(o.customer_id)}<small className="table-id">{productName(o.product_id)}</small></div></td><td role="cell" data-label="日期"><div className="table-cell-value">{o.created_at.slice(0, 10)}</div></td><td role="cell" data-label="狀態"><div className="table-cell-value">{Object.values(getOrderProgress(o.id)!.stages).join('／')}</div></td><td role="cell" data-label="操作"><div className="table-cell-value"><button className="btn btn-secondary btn-sm" onClick={() => selectOrder(o.id, true)}>查看</button></div></td></tr>)}</tbody></table></div> : <Empty />}
     {source && result && <Modal title={`${result.order.id} 來源單據（本地示範）`} onClose={() => setSource(false)}><pre className="source-json">{JSON.stringify({ order: result.order, approvals: result.approvals, shipments: result.shipments, invoices: result.invoices, receipts: result.receipts }, null, 2)}</pre></Modal>}
   </>;
 }

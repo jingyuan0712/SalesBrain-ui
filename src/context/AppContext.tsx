@@ -5,7 +5,7 @@ import type { Page, QueryState, DemoTask, SavedDemo } from '../domain/demoState.
 import type { FeatureId } from '../data/demo/types.ts';
 export type { Page } from '../domain/demoState.ts';
 
-interface Toast { id: string; message: string; type: 'success' | 'error' | 'info' }
+interface Toast { id: string; message: string; type: 'success' | 'error' | 'info'; targetPage?: Page }
 interface AppContextType {
   loggedOut: boolean; logout: () => void; enterDemo: () => void;
   density: 'comfortable' | 'compact'; setDensity: (density: 'comfortable' | 'compact') => void;
@@ -16,7 +16,7 @@ interface AppContextType {
   recent: SavedDemo['recent']; recordQuery: (feature: FeatureId, question: string) => void;
   resetDemo: () => void; resetVersion: number;
   presetQuestion: string; setPresetQuestion: (question: string) => void;
-  toasts: Toast[]; addToast: (message: string, type?: Toast['type']) => void; removeToast: (id: string) => void;
+  toasts: Toast[]; addToast: (message: string, type?: Toast['type'], targetPage?: Page) => void; removeToast: (id: string) => void;
 }
 const AppContext = createContext<AppContextType | null>(null);
 const storageKey = 'salesbrain-demo-v1';
@@ -58,10 +58,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
     setCurrentPage(id);
   }, [setCurrentPage]);
-  const addToast = useCallback((message: string, type: Toast['type'] = 'success') => {
+  const addToast = useCallback((message: string, type: Toast['type'] = 'success', targetPage?: Page) => {
     const id = crypto.randomUUID();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+    setToasts(prev => [...prev, { id, message, type, targetPage }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), targetPage ? 8000 : 3500);
   }, []);
   const removeToast = useCallback((id: string) => setToasts(prev => prev.filter(t => t.id !== id)), []);
   const recordQuery = useCallback((feature: FeatureId, question: string) => setRecent(prev => [{ id: crypto.randomUUID(), feature, query: question }, ...prev].slice(0, 6)), []);

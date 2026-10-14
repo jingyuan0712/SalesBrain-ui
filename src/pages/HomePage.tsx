@@ -7,7 +7,6 @@ import type { AgentResult } from '../domain/demoAgent.ts';
 import type { QueryState } from '../domain/demoState.ts';
 import { features } from '../config/features.ts';
 import { FeatureCard, Select, SourceNote } from '../components/DemoUI.tsx';
-import HomeMoreMenu from '../components/HomeMoreMenu.tsx';
 
 export default function HomePage() {
   const { query, updateQuery, openFeature, recordQuery, recent, setCurrentPage, setTasks, addToast, presetQuestion } = useApp();
@@ -36,7 +35,7 @@ export default function HomePage() {
     setRoute({ ...route, required: [] });
   }
   const missingValid = route?.required.every(key => key === 'month' ? !!supplement.selectedMonth : key === 'customer' ? !!supplement.selectedCustomerId : key === 'product' ? !!supplement.selectedProductId : !!supplement.selectedYear);
-  return <div className="page-content home-page"><div className="home-header"><div className="home-welcome"><p className="eyebrow">歡迎回到 SalesBrain，陳小晴</p><h1>今天要完成什麼？</h1><p>用一句話查詢示範業務資料，或從常用功能開始你的工作。</p></div><HomeMoreMenu /></div>
+  return <div className="page-content home-page"><div className="home-header"><div className="home-welcome"><p className="eyebrow">歡迎回到 SalesBrain，陳小晴</p><h1>今天要完成什麼？</h1><p>用一句話查詢示範業務資料，或從常用功能開始你的工作。</p></div></div>
     <form className="agent-input" onSubmit={e => { e.preventDefault(); send(); }}><Sparkles size={24} /><textarea ref={textarea} aria-label="輸入工作需求" value={input} onChange={e => setInput(e.target.value)} placeholder="例如：本月有哪些 A 級客戶還沒 Call？" onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }} rows={3} />
       <button className="btn btn-primary" type="submit" disabled={pending || !input.trim()} aria-label="送出查詢"><Send size={18} /></button></form>
     <p className="agent-disclaimer">AI 回答為預設模擬，尚未連接即時模型。</p>

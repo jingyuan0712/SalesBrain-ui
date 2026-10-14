@@ -629,6 +629,7 @@ tbody td {
 }
 
 .toast {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -642,6 +643,14 @@ tbody td {
   max-width: 360px;
   animation: slideInRight 0.22s ease;
 }
+
+.toast-content { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.toast-content > svg { flex-shrink: 0; }
+.toast-content > span { flex: 1; overflow-wrap: anywhere; }
+.toast-action { color: inherit; text-decoration: none; }
+.toast-action::after { content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: 1; }
+.toast-action:hover { color: var(--primary); }
+.toast-dismiss { position: relative; z-index: 2; }
 
 @keyframes slideInRight {
   from { opacity: 0; transform: translateX(20px); }
