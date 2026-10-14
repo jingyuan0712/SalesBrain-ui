@@ -14,7 +14,7 @@ export default function ToastContainer() {
           {toast.type === 'error' && <AlertCircle size={16} color="var(--danger)" />}
           {toast.type === 'info' && <Info size={16} color="var(--primary)" />}
           <span style={{ flex: 1 }}>{toast.message}</span>
-          <button className="btn btn-ghost btn-icon" onClick={() => removeToast(toast.id)} style={{ padding: '2px' }}>
+          <button className="btn btn-ghost btn-icon" aria-label="關閉通知" onClick={() => removeToast(toast.id)} style={{ padding: '2px' }}>
             <X size={13} />
           </button>
         </div>

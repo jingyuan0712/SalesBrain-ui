@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { X, FileText, ArrowRight } from 'lucide-react';
 import { demoData } from '../data/demo/demoData.ts';
 import { useApp } from '../context/AppContext.tsx';
@@ -12,14 +12,14 @@ export const productName = (id: string) => demoData.products.find(p => p.id === 
 export function Empty({ children = '目前沒有符合條件的示範資料，請調整篩選。' }: { children?: ReactNode }) {
   return <div className="empty-state"><FileText size={28} /><div className="empty-state-title">沒有可確認的資料</div><div className="empty-state-desc">{children}</div></div>;
 }
-export function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
+export function Modal({ title, children, onClose, returnFocusRef }: { title: string; children: ReactNode; onClose: () => void; returnFocusRef?: RefObject<HTMLElement | null> }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
-    const previous = document.activeElement as HTMLElement | null;
+    const previous = returnFocusRef?.current ?? (document.activeElement as HTMLElement | null);
     dialog?.showModal();
     return () => { dialog?.close(); previous?.focus(); };
-  }, []);
+  }, [returnFocusRef]);
   return <dialog ref={ref} className="demo-dialog" onCancel={onClose} onClick={e => { if (e.target === e.currentTarget) onClose(); }} aria-labelledby="dialog-title">
     <div className="modal-header"><h2 id="dialog-title" className="modal-title">{title}</h2><button className="btn btn-ghost btn-icon" aria-label="關閉視窗" onClick={onClose}><X size={18} /></button></div>
     <div className="modal-body">{children}</div>
