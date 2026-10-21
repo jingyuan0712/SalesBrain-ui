@@ -23,7 +23,12 @@ export function validateDemoData(data: DemoData = demoData): string[] {
     link(has(data.customers, c.customer_id) && has(data.users, c.salesperson_id), `${c.id} 客戶／業務不存在`);
     link(has(data.doctors, c.doctor_id) && (c.doctor_id === null || data.doctors.some(d => d.id === c.doctor_id && d.customer_id === c.customer_id)), `${c.id} 醫師關聯錯誤`);
   }
-  for (const p of data.products) link(has(data.pms, p.pm_id), `${p.id} PM 不存在`);
+  for (const p of data.products) {
+    link(has(data.pms, p.pm_id), `${p.id} PM 不存在`);
+    link(!!p.description && p.aliases.length > 0, `${p.id} 產品資訊不完整`);
+    link(data.documents.some(d => d.id === p.dm.document_id && d.product_id === p.id && d.status === 'current'), `${p.id} DM 關聯或版本錯誤`);
+    link(!!p.training.title && !!p.training.url, `${p.id} 教育訓練入口不完整`);
+  }
   const tierKeys = new Set<string>();
   for (const t of data.tiers) {
     const key = `${t.year},${t.product_id}`;

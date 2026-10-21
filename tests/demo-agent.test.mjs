@@ -4,6 +4,98 @@ import fs from 'node:fs';
 import { demoData } from '../src/data/demo/demoData.ts';
 import { initialQuery, initialTasks, parsePage, restoreDemo } from '../src/domain/demoState.ts';
 import { routeDemoQuestion, answerDemo, demoQuestions } from '../src/domain/demoAgent.ts';
+import { findProducts, searchProducts, productDetailRoute, routeProductId } from '../src/domain/productLookup.ts';
+import { crmFeatures, taskUsesCrm } from '../src/domain/crmRules.ts';
+
+test('CRM 來源與任務保存：拜訪、資料更新及 AI CRM 查詢保留入口，文件任務不顯示', () => {
+  assert.deepEqual(crmFeatures, ['F1', 'F2', 'F3', 'F5']);
+  const task = initialTasks()[0];
+  assert.equal(taskUsesCrm(task), true);
+  assert.equal(taskUsesCrm({ ...task, type: '資料更新' }), true);
+  assert.equal(taskUsesCrm({ ...task, type: '訂單追蹤' }), true);
+  assert.equal(taskUsesCrm({ ...task, type: '文件準備' }), false);
+  const crmTask = { ...task, type: '查詢追蹤', crmRelated: true };
+  const saved = restoreDemo(JSON.stringify({ version: 1, seedVersion: 2, query: initialQuery(), tasks: [crmTask], recent: [] }));
+  assert.equal(taskUsesCrm(saved.tasks[0]), true);
+  assert.equal(taskUsesCrm({ ...crmTask, crmRelated: false }), false);
+});
+
+test('產品自然語句、別名、全形與編號均使用共用產品資料', () => {
+  const cases = [
+    ['A產品', 'P-A'], ['A 產品', 'P-A'], ['產品A', 'P-A'], ['產品 A', 'P-A'], ['P-A', 'P-A'],
+    ['查詢 A 產品', 'P-A'], ['我要看 A 產品資訊', 'P-A'], ['A 產品的製編是什麼？', 'P-A'],
+    ['A產品DM', 'P-A'], ['A產品教育訓練', 'P-A'], ['幫我找產品 B 的介紹', 'P-B'],
+    ['產品 C 有哪些相關文件？', 'P-C'], ['C產品教育訓練', 'P-C'], ['ａ　產品', 'P-A'],
+    ['M26002', 'P-B'], ['FG-C01', 'P-C'], ['產品 B 的製編和 PM 是誰？', 'P-B'],
+  ];
+  for (const [question, id] of cases) {
+    const answer = routeDemoQuestion(question, { ...initialQuery(), selectedProductId: 'P-F' });
+    const product = demoData.products.find(p => p.id === id);
+    assert.equal(answer.intent, 'product_info', question);
+    assert.equal(answer.patch.selectedProductId, id, question);
+    assert.equal(answer.special, undefined, question);
+    assert.deepEqual(answer.required, [], question);
+    assert.ok(answer.text.includes(product.description), question);
+    assert.ok(answer.text.includes(product.material_no), question);
+    assert.ok(answer.text.includes(product.manufacturing_no), question);
+    assert.ok(answer.sources.includes(`documents:${product.dm.document_id}`));
+  }
+  assert.equal(searchProducts('A產品')[0].id, 'P-A');
+  assert.equal(searchProducts('產品　b')[0].id, 'P-B');
+});
+
+test('產品未指定、未知、多產品不套用前次產品，也不將 A 級或英文片段當產品', () => {
+  const state = { ...initialQuery(), selectedProductId: 'P-B' };
+  for (const q of ['產品資訊', '請幫我查產品介紹', '產品 DM', '產品教育訓練', '產品 A 和產品 B 的介紹']) {
+    const answer = routeDemoQuestion(q, state);
+    assert.equal(answer.intent, 'product_info', q);
+    assert.equal(answer.patch.selectedProductId, '', q);
+    assert.deepEqual(answer.required, ['product'], q);
+    const completed = answerDemo({ ...answer, required: [] }, { ...state, selectedProductId: 'P-C' });
+    assert.ok(completed.text.includes('M26003'));
+  }
+  for (const q of ['產品 Z', 'Z產品DM', 'P-AB', '產品 XYZ', '產品 X999 資訊']) {
+    const answer = routeDemoQuestion(q, state);
+    assert.equal(answer.intent, 'product_info', q);
+    assert.equal(answer.special, 'unknown-product', q);
+    assert.equal(answer.patch.selectedProductId, '', q);
+    assert.match(answer.text, /查無此產品/, q);
+  }
+  for (const q of ['A 級客戶還沒 Call', 'B 級 Call KPI', 'SAP', 'ABC', 'P-AB']) assert.deepEqual(findProducts(q), [], q);
+});
+
+test('既有業務意圖優先，產品資訊不攔截 Call、交易、梯隊、SOP 與進藥包', () => {
+  for (const [q, feature] of [
+    ['A 級客戶還沒 Call', 'F1'], ['本月產品 A 的銷售', 'F2'], ['產品 B 異常訂單', 'F3'],
+    ['晨星產品 B 報價', 'F4'], ['拜訪林醫師', 'F5'], ['產品 A 2026 梯隊', 'F6'],
+    ['產品 B 折扣 SOP', 'F7'], ['公司簡介', 'F8'], ['晨星產品 B 進藥包', 'F9'],
+  ]) {
+    const answer = routeDemoQuestion(q, initialQuery());
+    assert.equal(answer.feature, feature, q);
+    assert.equal(answer.intent, undefined, q);
+  }
+});
+
+test('六產品保留原主檔、有效 DM 關聯、訓練路由與可還原的產品深連結', () => {
+  for (const product of demoData.products) {
+    assert.ok(product.aliases.length);
+    assert.ok(product.description);
+    assert.ok(product.category);
+    const dm = demoData.documents.find(doc => doc.id === product.dm.document_id);
+    assert.equal(dm.product_id, product.id);
+    assert.equal(dm.status, 'current');
+    assert.equal(product.dm.is_demo, true);
+    assert.equal(product.training.is_demo, true);
+    assert.equal(parsePage(product.training.url), 'training');
+    assert.equal(routeProductId(product.training.url), product.id);
+    assert.equal(parsePage(productDetailRoute(product.id)), 'F6');
+    assert.equal(routeProductId(productDetailRoute(product.id)), product.id);
+  }
+  assert.equal(demoData.products[1].dm.document_id, 'DOC-DM2');
+  assert.equal(demoData.products[2].pm_id, 'PM01');
+  assert.equal(parsePage('#/crm-demo'), 'crm-demo');
+  assert.equal(routeProductId('#/training'), null);
+});
 
 test('首頁九個示範句路由到對應功能並提供來源', () => {
   const expected = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9'];

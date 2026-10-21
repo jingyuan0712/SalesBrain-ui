@@ -7,6 +7,9 @@ import type { AgentResult } from '../domain/demoAgent.ts';
 import type { QueryState } from '../domain/demoState.ts';
 import { features } from '../config/features.ts';
 import { FeatureCard, Select, SourceNote } from '../components/DemoUI.tsx';
+import { ProductAnswer } from '../components/ProductInfo.tsx';
+import { crmFeatures, crmSopIds } from '../domain/crmRules.ts';
+import CRMQuickLink from '../components/CRMQuickLink.tsx';
 
 export default function HomePage() {
   const { query, updateQuery, openFeature, recordQuery, recent, setCurrentPage, setTasks, addToast, presetQuestion } = useApp();
@@ -20,6 +23,9 @@ export default function HomePage() {
   useEffect(() => { setInput(presetQuestion); }, [presetQuestion]);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const result = route && !route.required.length ? answerDemo(route, query) : route;
+  const product = result?.intent === 'product_info' && !result.required.length && !result.special
+    ? demoData.products.find(p => p.id === query.selectedProductId) : undefined;
+  const crmRelated = !!result?.feature && (crmFeatures.includes(result.feature) || (result.feature === 'F7' && crmSopIds.includes(query.sopId)) || (result.feature === 'F6' && question.includes('客戶編號')));
   function send(text = input) {
     if (!text.trim() || pending) return;
     setQuestion(text.trim()); setPending(true); setRoute(null); setSupplement({});
@@ -39,14 +45,16 @@ export default function HomePage() {
     <form className="agent-input" onSubmit={e => { e.preventDefault(); send(); }}><Sparkles size={24} /><textarea ref={textarea} aria-label="輸入工作需求" value={input} onChange={e => setInput(e.target.value)} placeholder="例如：本月有哪些 A 級客戶還沒 Call？" onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }} rows={3} />
       <button className="btn btn-primary" type="submit" disabled={pending || !input.trim()} aria-label="送出查詢"><Send size={18} /></button></form>
     <p className="agent-disclaimer">AI 回答為預設模擬，尚未連接即時模型。</p>
-    <div className="prompt-chips">{demoQuestions.slice(0, 4).map((q, i) => <button key={q} onClick={() => { setInput(q); textarea.current?.focus(); }}>{['查未 Call 客戶', '比較兩月銷量', '查 O007 卡點', '查歷史報價'][i]}</button>)}</div>
+    <div className="prompt-chips">{demoQuestions.slice(0, 4).map((q, i) => <button key={q} onClick={() => { setInput(q); textarea.current?.focus(); }}>{['查未 Call 客戶', '比較兩月銷量', '查 O007 卡點', '查歷史報價'][i]}</button>)}<button type="button" onClick={() => { setInput('A產品的資訊'); textarea.current?.focus(); }}>A產品的資訊</button></div>
     {pending && <div className="card agent-result" role="status"><div className="loading-dots"><span /><span /><span /></div>正在查詢本地示範資料…</div>}
-    {result && <section className="card agent-result" aria-live="polite"><p className="eyebrow">你的問題：{question}</p><h2>{result.feature ? 'SalesBrain 查詢結果' : '目前支援的情境'}</h2><p className="answer-text">{result.text}</p>
+    {result && <section className="card agent-result" aria-live="polite"><p className="eyebrow">你的問題：{question}</p><h2>{product ? `已找到${product.name.replace('示範', '')}的相關資訊` : result.feature ? 'SalesBrain 查詢結果' : '目前支援的情境'}</h2>{product ? <ProductAnswer product={product} /> : <p className="answer-text">{result.text}</p>}
+      {result.intent === 'product_info' && result.special === 'unknown-product' && <div className="action-row" aria-label="可選產品">{demoData.products.map(p => <button className="btn btn-secondary" key={p.id} onClick={() => { setInput(p.name); send(p.name); }}>{p.name}</button>)}</div>}
       {result.required.length > 0 && <div className="filter-bar">{result.required.map(field => field === 'month' ? <Select key={field} label="補充月份" value={supplement.selectedMonth ?? ''} onChange={selectedMonth => setSupplement(s => ({ ...s, selectedMonth }))} options={[{ value: '', label: '請選擇月份' }, ...['2026-10', '2026-09'].map(m => ({ value: m, label: m }))]} />
         : field === 'year' ? <Select key={field} label="補充年度" value={String(supplement.selectedYear ?? '')} onChange={v => setSupplement(s => ({ ...s, selectedYear: v ? Number(v) : null }))} options={[{ value: '', label: '請選擇年度' }, { value: '2025', label: '2025' }, { value: '2026', label: '2026' }]} />
         : <Select key={field} label={field === 'customer' ? '補充客戶' : '補充產品'} value={(field === 'customer' ? supplement.selectedCustomerId : supplement.selectedProductId) ?? ''} onChange={v => setSupplement(s => ({ ...s, [field === 'customer' ? 'selectedCustomerId' : 'selectedProductId']: v }))} options={[{ value: '', label: '請選擇' }, ...(field === 'customer' ? demoData.customers : demoData.products).map(x => ({ value: x.id, label: x.name }))]} />)}<button className="btn btn-primary" disabled={!missingValid} onClick={complete}>確認條件並查詢</button></div>}
-      {result.sources.length > 0 && <SourceNote systems={result.feature === 'F1' || result.feature === 'F5' ? 'CRM／知識文件' : ['F7', 'F8', 'F9'].includes(result.feature ?? '') ? 'OA／知識文件' : 'SAP／CRM／知識文件'} ids={result.sources} updated={result.updatedAt} />}
-      {result.feature && !result.required.length && !result.special?.startsWith('unknown') && <div className="action-row"><button className="btn btn-primary" onClick={() => openFeature(result.feature!)}>查看完整{features.find(f => f.id === result.feature)?.title}<ArrowRight size={15} /></button><button className="btn btn-secondary" onClick={() => { setTasks(ts => [{ id: crypto.randomUUID(), name: question, customer: demoData.customers.find(c => c.id === query.selectedCustomerId)?.name ?? '', type: '查詢追蹤', createdAt: '2026-10-20', dueDate: '', status: 'pending', priority: 'medium' }, ...ts]); addToast('已儲存至本地示範任務。'); }}>儲存為任務</button></div>}
+      {result.intent !== 'product_info' && result.sources.length > 0 && <SourceNote systems={result.feature === 'F1' || result.feature === 'F5' ? 'CRM／知識文件' : ['F7', 'F8', 'F9'].includes(result.feature ?? '') ? 'OA／知識文件' : 'SAP／CRM／知識文件'} ids={result.sources} updated={result.updatedAt} />}
+      {result.feature && !result.required.length && !result.special?.startsWith('unknown') && <div className="action-row">{result.intent !== 'product_info' && <button className="btn btn-primary" onClick={() => openFeature(result.feature!)}>查看完整{features.find(f => f.id === result.feature)?.title}<ArrowRight size={15} /></button>}<button className="btn btn-secondary" onClick={() => { setTasks(ts => [{ id: crypto.randomUUID(), name: question, customer: demoData.customers.find(c => c.id === query.selectedCustomerId)?.name ?? '', type: '查詢追蹤', crmRelated, createdAt: '2026-10-20', dueDate: '', status: 'pending', priority: 'medium' }, ...ts]); addToast('已儲存至本地示範任務。'); }}>儲存為任務</button></div>}
+      {crmRelated && !result.required.length && <div className="action-row"><CRMQuickLink /></div>}
       {result.special?.startsWith('unknown') && <button className="btn btn-secondary" onClick={() => setCurrentPage('toolbox')}>到常用功能選擇查詢條件</button>}
       {!result.feature && <div className="prompt-chips">{demoQuestions.map(q => <button key={q} onClick={() => send(q)}>{q}</button>)}</div>}
     </section>}

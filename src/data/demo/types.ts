@@ -5,7 +5,12 @@ export interface User { id: string; name: string; role: 'sales' | 'manager'; reg
 export interface Customer { id: string; name: string; channel: string; grade: Grade; required: number; owner: string; region: string }
 export interface Doctor { id: string; customer_id: string; name: string; department: string; clinic_load: number }
 export interface Call { id: string; customer_id: string; doctor_id: string | null; salesperson_id: string; date: string; status: 'completed' | 'draft' | 'cancelled'; valid: boolean; note: string }
-export interface Product { id: string; name: string; material_no: string; manufacturing_no: string; pm_id: string; unit: string; demo_price: number }
+export interface Product {
+  id: string; name: string; material_no: string; manufacturing_no: string; pm_id: string; unit: string; demo_price: number;
+  aliases: string[]; category: string; description: string;
+  dm: { document_id: string; url: string | null; is_demo: boolean };
+  training: { title: string; description: string; url: string; is_demo: boolean };
+}
 export interface PM { id: string; name: string; email: string }
 export interface Tier { year: number; product_id: string; tier: string }
 export interface Sale { id: string; date: string; customer_id: string; product_id: string; quantity: number; unit_price: number; amount: number; salesperson_id: string; invoice_id: string; order_id: string }

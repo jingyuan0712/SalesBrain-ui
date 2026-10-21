@@ -1,10 +1,11 @@
 import { demoData } from '../data/demo/demoData.ts';
 import type { FeatureId } from '../data/demo/types.ts';
 import type { QueryState } from './demoState.ts';
+import { findProducts, normalizeProductText } from './productLookup.ts';
 import { getCallKpi, getSalesSummary, compareSales, getOrderProgress, getPackageSummary, getProductTier, getHistoricalQuotes, formatPercentage, quoteDisclosure } from './demoRules.ts';
 
 export type RequiredField = 'month' | 'customer' | 'product' | 'year';
-export interface AgentResult { feature: FeatureId | null; patch: Partial<QueryState>; required: RequiredField[]; text: string; sources: string[]; updatedAt: string; special?: 'tier' | 'refund' | 'subsidy' | 'unknown-product' | 'unknown-target' }
+export interface AgentResult { feature: FeatureId | null; intent?: 'product_info'; patch: Partial<QueryState>; required: RequiredField[]; text: string; sources: string[]; updatedAt: string; special?: 'tier' | 'refund' | 'subsidy' | 'unknown-product' | 'unknown-target' }
 export const demoQuestions = [
   '本月有哪些 A 級客戶還沒 Call？', '比較九月與十月產品 A、B、C 的銷量。', 'O007 訂單為什麼還沒出貨？',
   '晨星醫院的產品 B 過去怎麼報價？', '拜訪林醫師需要準備什麼資料？', '產品 B 的製編和 PM 是誰？',
@@ -12,11 +13,12 @@ export const demoQuestions = [
 ];
 const stamp = '2026-10-20 08:55（模擬更新）';
 export function routeDemoQuestion(question: string, current: QueryState): AgentResult {
-  const q = question.replace(/\s+/g, '').toUpperCase();
+  const q = normalizeProductText(question);
   const patch: Partial<QueryState> = {};
-  const productMatch = q.match(/(?:產品|P-)([A-Z])/);
+  const matches = findProducts(q);
+  const productMatch = q.match(/(?:產品|P-)([A-Z])(?![A-Z0-9])/) ?? q.match(/(?<![A-Z0-9])([A-Z])產品/);
   const bareProduct = q.match(/^([A-Z])(?:製編|哪個|在哪|什麼)/);
-  const product = productMatch?.[1] ?? bareProduct?.[1];
+  const product = matches.length === 1 ? matches[0].id.slice(2) : productMatch?.[1] ?? bareProduct?.[1];
   if (product) patch.selectedProductId = `P-${product}`;
   for (const c of demoData.customers) if (q.includes(c.name.replace('示範', ''))) patch.selectedCustomerId = c.id;
   if (q.includes('晨星')) patch.selectedCustomerId = 'C001';
@@ -31,6 +33,7 @@ export function routeDemoQuestion(question: string, current: QueryState): AgentR
   const year = q.match(/20\d{2}/)?.[0];
   const orderId = q.match(/O\d{3,4}/)?.[0];
   let feature: FeatureId | null = null;
+  let intent: AgentResult['intent'];
   let special: AgentResult['special'];
   if (/進藥/.test(q)) feature = 'F9';
   else if (/退稅|報價|議價/.test(q)) { feature = 'F4'; if (q.includes('退稅')) special = 'refund'; }
@@ -52,11 +55,23 @@ export function routeDemoQuestion(question: string, current: QueryState): AgentR
   }
   else if (/梯隊|製編|物料|PM|編號/.test(q)) {
     feature = 'F6'; if (q.includes('梯隊')) { special = 'tier'; patch.selectedYear = year ? Number(year) : null; }
+    else if (!q.includes('客戶編號')) intent = 'product_info';
   } else if (/福利|公司簡介|補助/.test(q)) {
     feature = 'F8'; patch.companyTab = q.includes('公司簡介') ? 'company' : 'hr'; if (q.includes('補助')) special = 'subsidy';
   } else if (/拜訪|醫師|醫生/.test(q)) feature = 'F5';
-  else if (/^(查|查詢)?(示範)?產品[A-Z][？?。]?$/.test(q)) feature = 'F6';
+  else if (/^(?:查詢|查|我要看|幫我找)?(?:示範)?(?:產品[A-Z0-9_-]+|[A-Z0-9_-]+產品|P-[A-Z0-9_-]+|M\d+|FG-[A-Z]\d+)[？?。]?$/.test(q)
+    || (/產品|DM|教育訓練/.test(q) && /介紹|資訊|資料|文件|DM|教育訓練|資源/.test(q))) {
+    feature = 'F6'; intent = 'product_info';
+  }
   if (!feature) return { feature: null, patch: {}, required: [], text: '目前 Demo 僅支援指定業務情境，請選擇下方的示範問題或功能方塊。', sources: [], updatedAt: stamp };
+  // Product queries never silently reuse a product from a previous question.
+  if (intent === 'product_info') {
+    if (matches.length > 1) patch.selectedProductId = '';
+    else if (!product) {
+      patch.selectedProductId = '';
+      if (/產品(?!DM(?:[？?。]|$)|PM(?:[？?。]|$))[A-Z0-9_-]+|P-[A-Z0-9_-]+|[A-Z0-9_-]+產品|M\d+|FG-[A-Z0-9_-]+|(?:未知|不存在|無此).*產品|產品.*(?:未知|不存在)/.test(q)) special = 'unknown-product';
+    }
+  }
   if (product && !demoData.products.some(p => p.id === `P-${product}`)) { special = 'unknown-product'; patch.selectedProductId = ''; }
   if (/客戶編號/.test(q) && patch.selectedCustomerId && !product) patch.selectedProductId = '';
   const namedCustomer = q.match(/(?:拜訪|查詢|準備)?([^，。？?]{2,8}(?:醫院|診所|藥局))/)?.[1];
@@ -74,7 +89,7 @@ export function routeDemoQuestion(question: string, current: QueryState): AgentR
   if (feature === 'F6' && !combined.selectedProductId && !/客戶編號/.test(q)) required.push('product');
   if (feature === 'F6' && /客戶編號/.test(q) && !combined.selectedCustomerId) required.push('customer');
   if (special === 'tier' && combined.selectedYear === null) required.push('year');
-  const result: AgentResult = { feature, patch, required, special, text: '', sources: [], updatedAt: stamp };
+  const result: AgentResult = { feature, intent, patch, required, special, text: '', sources: [], updatedAt: stamp };
   return answerDemo(result, combined);
 }
 
@@ -82,7 +97,7 @@ export function answerDemo(route: AgentResult, query: QueryState): AgentResult {
   const result = { ...route };
   if (route.special === 'unknown-product') return { ...result, required: [], text: '示範產品主檔查無此產品；沒有可確認的製編、PM 或交易資料。請選擇已提供的產品。', sources: ['products：0 筆匹配'] };
   if (route.special === 'unknown-target') return { ...result, required: [], text: '目前沒有此客戶或醫師的示範資料，請選擇已提供的對象。', sources: ['customers/doctors：0 筆匹配'] };
-  if (route.required.length) return { ...result, text: '請補充下方條件，再查詢示範資料。', sources: [] };
+  if (route.required.length) return { ...result, text: route.intent === 'product_info' ? '請選擇要查詢的產品，再查看產品資訊。' : '請補充下方條件，再查詢示範資料。', sources: [] };
   const c = query.selectedCustomerId, p = query.selectedProductId;
   switch (route.feature) {
     case 'F1': {
@@ -113,6 +128,10 @@ export function answerDemo(route: AgentResult, query: QueryState): AgentResult {
     }
     case 'F6': {
       const product = demoData.products.find(x => x.id === p), customer = demoData.customers.find(x => x.id === c);
+      if (route.intent === 'product_info') {
+        return { ...result, text: product ? `已找到${product.name.replace('示範', '')}的相關資訊\n物料 ${product.material_no}、製編 ${product.manufacturing_no}、窗口 ${product.pm_id}。\n${product.description}` : '請選擇要查詢的產品。',
+          sources: product ? [`products:${product.id}`, `documents:${product.dm.document_id}`, `pms:${product.pm_id}`] : [] };
+      }
       const tier = getProductTier(p, query.selectedYear);
       result.text = route.special === 'tier' ? tier.tier ? `${product?.name} ${tier.tier.year}：${tier.tier.tier}（示範分級）。` : '此年度沒有可確認的梯隊資料。'
         : product ? `${product.name} ${product.id}：物料 ${product.material_no}、製編 ${product.manufacturing_no}、窗口 ${product.pm_id}。` : customer ? `${customer.name}：客戶編號 ${customer.id}。` : '查無匹配產品或客戶。';

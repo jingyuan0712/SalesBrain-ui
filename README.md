@@ -22,6 +22,8 @@ npm run build
 
 ## 決賽資料基礎
 
+- [CRM 快速跳轉、產品資訊與首頁 AI 查詢交付](docs/product-crm-delivery.md)：新增元件、完整修改清單、CRM 按鈕範圍、正式連結替換與瀏覽器驗證方式。
+
 - [本次完整交付、檔案清單與測試結果](docs/demo-delivery.md)
 - [第一階段歷史盤點](docs/phase-1.md)
 - [D01–D15 共用資料](src/data/demo/demoData.ts) 與 [型別](src/data/demo/types.ts)

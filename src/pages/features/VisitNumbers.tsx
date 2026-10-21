@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
 import { demoData } from '../../data/demo/demoData.ts';
+import { ProductDocuments } from '../../components/ProductInfo.tsx';
+import CRMQuickLink from '../../components/CRMQuickLink.tsx';
+import { searchProducts } from '../../domain/productLookup.ts';
 import { getProductTier } from '../../domain/demoRules.ts';
 import { Select, SharedFilters, Modal, DocumentPreview, Empty, SourceNote, customerName, productName } from '../../components/DemoUI.tsx';
 export function VisitPage() {
@@ -32,7 +35,7 @@ export function NumbersPage() {
   const pm = demoData.pms.find(pm => pm.id === product?.pm_id);
   const customer = demoData.customers.find(c => c.id === query.selectedCustomerId);
   const tier = getProductTier(query.selectedProductId, query.selectedYear);
-  const matches = search.trim() ? demoData.products.filter(p => `${p.name}${p.id}${p.material_no}${p.manufacturing_no}`.toLowerCase().includes(search.toLowerCase())) : [];
+  const matches = searchProducts(search);
   const customerMatches = search.trim() ? demoData.customers.filter(c => `${c.name}${c.id}`.toLowerCase().includes(search.toLowerCase())) : [];
   async function copy(value: string) {
     try { await navigator.clipboard.writeText(value); addToast(`已複製 ${value}`); }
@@ -40,10 +43,11 @@ export function NumbersPage() {
   }
   return <><div className="filter-bar"><SharedFilters /><label className="filter-field"><span>搜尋產品／客戶／編號</span><input className="input" aria-label="搜尋產品與編號" value={search} onChange={e => setSearch(e.target.value)} placeholder="產品 B、晨星、M26002…" /></label></div>
     {search && <section className="card detail-card"><h2>搜尋結果</h2>{matches.length + customerMatches.length ? <div className="action-row">{matches.map(p => <button className="btn btn-secondary" key={p.id} onClick={() => { updateQuery({ selectedProductId: p.id }); setSearch(''); }}>{p.name} · {p.id}</button>)}{customerMatches.map(c => <button className="btn btn-secondary" key={c.id} onClick={() => { updateQuery({ selectedCustomerId: c.id }); setSearch(''); }}>{c.name} · {c.id}</button>)}</div> : <Empty>已查產品與客戶主檔，沒有匹配結果，不猜製編或 PM。</Empty>}</section>}
-    {!search && (product ? <section className="card detail-card"><h2>{product.name}</h2><div className="number-grid">{[{ label: '產品 ID', value: product.id }, { label: '物料號碼', value: product.material_no }, { label: '產品製編', value: product.manufacturing_no }].map(n => <div key={n.label}><span>{n.label}</span><strong>{n.value}</strong><button className="btn btn-secondary btn-sm" onClick={() => copy(n.value)}>複製 {n.label}</button></div>)}</div>
+    {!search && (product ? <section className="card detail-card"><h2>{product.name}</h2><p>{product.id} · {product.category} · 對應 PM：{pm?.name ?? product.pm_id}</p><div className="number-grid">{[{ label: '產品 ID', value: product.id }, { label: '物料號碼', value: product.material_no }, { label: '產品製編', value: product.manufacturing_no }].map(n => <div key={n.label}><span>{n.label}</span><strong>{n.value}</strong><button className="btn btn-secondary btn-sm" onClick={() => copy(n.value)}>複製 {n.label}</button></div>)}</div>
       <button className="btn btn-secondary" onClick={() => setShowPm(true)}>查看對應 PM · {product.pm_id}</button>
-      <p className="text-muted">物料與製編為兩個示範欄位，是否等同仍待企業確認。</p></section> : <Empty>請選擇或搜尋產品。</Empty>)}
-    {customer && !search && <section className="card detail-card"><h2>客戶編號</h2><p>{customer.name} · <strong>{customer.id}</strong></p><button className="btn btn-secondary" onClick={() => copy(customer.id)}>複製客戶編號</button></section>}
+      <h3>產品介紹</h3><p>{product.description}</p><p className="text-muted">物料與製編為兩個示範欄位，是否等同仍待企業確認。</p></section> : <Empty>請選擇或搜尋產品。</Empty>)}
+    {product && !search && <ProductDocuments key={product.id} product={product} />}
+    {customer && !search && <section className="card detail-card"><h2>客戶編號</h2><p>{customer.name} · <strong>{customer.id}</strong></p><button className="btn btn-secondary" onClick={() => copy(customer.id)}>複製客戶編號</button><div className="action-row"><CRMQuickLink /></div></section>}
     {!search && <section className="card detail-card"><h2>年度梯隊查詢</h2><div className="filter-bar"><Select label="年度（必填）" value={String(query.selectedYear ?? '')} onChange={v => updateQuery({ selectedYear: v ? Number(v) : null })} options={[{ value: '', label: '請選擇年度' }, { value: '2025', label: '2025' }, { value: '2026', label: '2026' }]} />
       <p aria-live="polite">{tier.status === 'year-required' ? '請先選擇年度，年度不同，梯隊清單也不同。' : tier.tier ? `${product?.name} · ${tier.tier.year} 年 · ${tier.tier.tier}（示範）` : '沒有可確認的年度梯隊資料。'}</p></div></section>}
     <SourceNote systems="SAP 產品主檔／CRM 客戶主檔／年度清單／PM 名錄" ids={search ? [...matches.map(p => p.id), ...customerMatches.map(c => c.id)] : [...(product ? [product.id, product.pm_id] : []), ...(customer ? [customer.id] : []), ...(tier.tier ? [`tiers:${tier.tier.year},${tier.tier.product_id}`] : [])]} />

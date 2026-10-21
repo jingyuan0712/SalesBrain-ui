@@ -3,13 +3,15 @@ import type { ReactNode, Dispatch, SetStateAction } from 'react';
 import { initialQuery, initialTasks, parsePage, restoreDemo } from '../domain/demoState.ts';
 import type { Page, QueryState, DemoTask, SavedDemo } from '../domain/demoState.ts';
 import type { FeatureId } from '../data/demo/types.ts';
+import { demoData } from '../data/demo/demoData.ts';
+import { productDetailRoute, routeProductId } from '../domain/productLookup.ts';
 export type { Page } from '../domain/demoState.ts';
 
 interface Toast { id: string; message: string; type: 'success' | 'error' | 'info'; targetPage?: Page }
 interface AppContextType {
   loggedOut: boolean; logout: () => void; enterDemo: () => void;
   density: 'comfortable' | 'compact'; setDensity: (density: 'comfortable' | 'compact') => void;
-  currentPage: Page; setCurrentPage: (page: Page) => void;
+  currentPage: Page; routeHash: string; setCurrentPage: (page: Page) => void;
   query: QueryState; updateQuery: (patch: Partial<QueryState>) => void;
   openFeature: (id: FeatureId, patch?: Partial<QueryState>) => void;
   tasks: DemoTask[]; setTasks: Dispatch<SetStateAction<DemoTask[]>>;
@@ -21,33 +23,42 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 const storageKey = 'salesbrain-demo-v1';
 function readSaved() { try { return restoreDemo(localStorage.getItem(storageKey)); } catch { return restoreDemo(null); } }
+function productRoutePatch(hash: string): Partial<QueryState> {
+  const id = routeProductId(hash);
+  return parsePage(hash) === 'F6' && id !== null ? { selectedProductId: demoData.products.some(p => p.id === id) ? id : '' } : {};
+}
 export function AppProvider({ children }: { children: ReactNode }) {
   const [loggedOut, setLoggedOut] = useState(() => { try { return sessionStorage.getItem('salesbrain-logged-out') === 'true'; } catch { return false; } });
   const [density, setDensity] = useState<'comfortable' | 'compact'>(() => { try { return localStorage.getItem('salesbrain-density') === 'compact' ? 'compact' : 'comfortable'; } catch { return 'comfortable'; } });
   const [saved] = useState(readSaved);
-  const [currentPage, setPage] = useState<Page>(() => parsePage(location.hash));
-  const [query, setQuery] = useState<QueryState>(saved.query);
+  const [routeHash, setRouteHash] = useState(location.hash);
+  const currentPage = parsePage(routeHash);
+  const [query, setQuery] = useState<QueryState>(() => ({ ...saved.query, ...productRoutePatch(location.hash) }));
   const [tasks, setTasks] = useState<DemoTask[]>(saved.tasks);
   const [recent, setRecent] = useState(saved.recent);
   const [resetVersion, setResetVersion] = useState(0);
   const [presetQuestion, setPresetQuestion] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
   useEffect(() => {
-    const onHash = () => setPage(parsePage(location.hash));
+    const onHash = () => { setRouteHash(location.hash); setQuery(prev => ({ ...prev, ...productRoutePatch(location.hash) })); };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
   useEffect(() => {
     try { localStorage.setItem(storageKey, JSON.stringify({ version: 1, seedVersion: 2, query, tasks, recent })); } catch { /* Keep memory state when storage is unavailable. */ }
   }, [query, tasks, recent]);
-  const setCurrentPage = useCallback((page: Page) => { setPage(page); location.hash = `/${page}`; }, []);
+  const setCurrentPage = useCallback((page: Page) => { const hash = `#/${page}`; setRouteHash(hash); location.hash = hash; }, []);
   useEffect(() => { try { sessionStorage.setItem('salesbrain-logged-out', String(loggedOut)); } catch { /* Keep session state in memory. */ } }, [loggedOut]);
   useEffect(() => { try { localStorage.setItem('salesbrain-density', density); } catch { /* Keep preferences in memory. */ } }, [density]);
   const logout = useCallback(() => { setLoggedOut(true); setToasts([]); setPresetQuestion(''); setCurrentPage('home'); }, [setCurrentPage]);
   const enterDemo = useCallback(() => { setLoggedOut(false); setCurrentPage('home'); }, [setCurrentPage]);
-  const updateQuery = useCallback((patch: Partial<QueryState>) => setQuery(prev => ({ ...prev, ...patch,
+  const updateQuery = useCallback((patch: Partial<QueryState>) => {
+    if (currentPage === 'F6' && patch.selectedProductId !== undefined) {
+      const hash = productDetailRoute(patch.selectedProductId); setRouteHash(hash); location.hash = hash;
+    }
+    setQuery(prev => ({ ...prev, ...patch,
     ...(patch.selectedCustomerId !== undefined && patch.selectedCustomerId !== prev.selectedCustomerId && patch.selectedDoctorId === undefined ? { selectedDoctorId: '' } : {}),
-  })), []);
+  })); }, [currentPage]);
   const openFeature = useCallback((id: FeatureId, patch: Partial<QueryState> = {}) => {
     setQuery(prev => {
       const next = { ...prev,
@@ -56,8 +67,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (next.selectedCustomerId !== prev.selectedCustomerId && patch.selectedDoctorId === undefined) next.selectedDoctorId = '';
       return next;
     });
-    setCurrentPage(id);
-  }, [setCurrentPage]);
+    if (id === 'F6') {
+      const hash = productDetailRoute(patch.selectedProductId ?? (query.selectedProductId || 'P-B'));
+      setRouteHash(hash); location.hash = hash;
+    } else setCurrentPage(id);
+  }, [setCurrentPage, query.selectedProductId]);
   const addToast = useCallback((message: string, type: Toast['type'] = 'success', targetPage?: Page) => {
     const id = crypto.randomUUID();
     setToasts(prev => [...prev, { id, message, type, targetPage }]);
@@ -69,7 +83,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setQuery(initialQuery()); setTasks(initialTasks()); setRecent([]); setToasts([]); setPresetQuestion(''); setResetVersion(v => v + 1);
     setCurrentPage('home'); addToast('已重置示範資料、任務與篩選條件。');
   }, [setCurrentPage, addToast]);
-  return <AppContext.Provider value={{ loggedOut, logout, enterDemo, density, setDensity, currentPage, setCurrentPage, query, updateQuery, openFeature, tasks, setTasks, recent, recordQuery,
+  return <AppContext.Provider value={{ loggedOut, logout, enterDemo, density, setDensity, currentPage, routeHash, setCurrentPage, query, updateQuery, openFeature, tasks, setTasks, recent, recordQuery,
     resetDemo, resetVersion, presetQuestion, setPresetQuestion, toasts, addToast, removeToast }}>{children}</AppContext.Provider>;
 }
 export function useApp() {

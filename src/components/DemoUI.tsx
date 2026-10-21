@@ -5,6 +5,8 @@ import { demoData } from '../data/demo/demoData.ts';
 import { useApp } from '../context/AppContext.tsx';
 import { features } from '../config/features.ts';
 import type { FeatureId } from '../data/demo/types.ts';
+import { crmSopIds } from '../domain/crmRules.ts';
+import CRMQuickLink from './CRMQuickLink.tsx';
 
 export const money = (n: number) => `NT$ ${n.toLocaleString('zh-TW')}`;
 export const customerName = (id: string) => demoData.customers.find(c => c.id === id)?.name ?? id;
@@ -28,9 +30,12 @@ export function Modal({ title, children, onClose, returnFocusRef }: { title: str
 }
 export function DocumentPreview({ id, onClose }: { id: string; onClose: () => void }) {
   const doc = demoData.documents.find(d => d.id === id);
-  return <Modal title={doc?.title ?? '文件不存在'} onClose={onClose}>{doc ? <>
+  const product = demoData.products.find(p => p.dm.document_id === id);
+  return <Modal title={product ? `${product.name.replace('示範', '')}－產品 DM` : doc?.title ?? '文件不存在'} onClose={onClose}>{doc ? <>
+    {product && <><p>此為 SalesBrain Demo 模擬文件，正式版本將提供企業核准的最新產品 DM。</p><h3>產品概要 · {product.name}</h3><p>{product.description}</p></>}
     <p className="notice">虛構示範文件，非核准醫藥資料或真實證明／政策。</p>
     {doc.type === 'quote' && <p className="notice">歷史報價僅供參考，不代表現行有效價格。</p>}
+    {crmSopIds.includes(doc.id) && <CRMQuickLink />}
     <div className="detail-grid"><div>文件 ID<strong>{doc.id}</strong></div><div>版本<strong>v{doc.version} · {documentStatus(doc.status)}</strong></div>
       <div>更新日期<strong>{doc.updated_at}</strong></div><div>維護窗口<strong>{doc.owner}</strong></div></div>
     <article className="document-text"><h3>{doc.locator}</h3><p>{doc.text}</p>{doc.replacement && <p>取代版本：{doc.replacement}</p>}</article>

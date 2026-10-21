@@ -1,4 +1,15 @@
-import type { DemoData, DemoDocument, DocumentStatus, Sale } from './types.ts';
+import type { DemoData, DemoDocument, DocumentStatus, Product, Sale } from './types.ts';
+
+// DM versions remain in the existing shared document table.
+function withProductInfo(product: Omit<Product, 'aliases' | 'category' | 'description' | 'dm' | 'training'>): Product {
+  const letter = product.id.slice(2);
+  const name = product.name.replace('示範', '');
+  return { ...product, aliases: [name, `${letter}產品`, product.id], category: '示範產品',
+    description: `${name} 為公司示範產品，用於呈現產品基本資訊、業務介紹、文件與教育訓練資料。`,
+    dm: { document_id: product.id === 'P-B' ? 'DOC-DM2' : `DOC-${product.id}-DM`, url: null, is_demo: true },
+    training: { title: `${name} 教育訓練影片（Demo）`, description: '示範產品資訊與文件查詢的學習入口，目前提供訓練預覽占位畫面。', url: `#/training?product=${encodeURIComponent(product.id)}`, is_demo: true },
+  };
+}
 
 // Source: SalesBrain 決賽共識與前端 Demo 規格 v1.0, pp. 19–46.
 // Original specification scenarios are retained; additional fictional records enrich the UI.
@@ -96,7 +107,7 @@ const specificationData: DemoData = {
     { id: 'P-A', name: '示範產品 A', material_no: 'M26001', manufacturing_no: 'FG-A01', pm_id: 'PM01', demo_price: 100, unit: '盒' },
     { id: 'P-B', name: '示範產品 B', material_no: 'M26002', manufacturing_no: 'FG-B01', pm_id: 'PM02', demo_price: 200, unit: '盒' },
     { id: 'P-C', name: '示範產品 C', material_no: 'M26003', manufacturing_no: 'FG-C01', pm_id: 'PM01', demo_price: 50, unit: '盒' },
-  ],
+  ].map(withProductInfo),
   pms: [{ id: 'PM01', name: '示範許 PM', email: 'pm01@example.invalid' }, { id: 'PM02', name: '示範葉 PM', email: 'pm02@example.invalid' }],
   tiers: [
     { year: 2025, product_id: 'P-A', tier: '第二梯隊' }, { year: 2026, product_id: 'P-A', tier: '第一梯隊' },
@@ -167,7 +178,7 @@ function expandMockData(base: DemoData): DemoData {
   });
   data.pms.push({ id: 'PM03', name: '示範張 PM', email: 'pm03@example.invalid' });
   ['D', 'E', 'F'].forEach((letter, index) => {
-    data.products.push({ id: `P-${letter}`, name: `示範產品 ${letter}`, material_no: `M2600${index + 4}`, manufacturing_no: `FG-${letter}01`, pm_id: index === 1 ? 'PM01' : 'PM03', unit: '盒', demo_price: [150, 80, 120][index] });
+    data.products.push(withProductInfo({ id: `P-${letter}`, name: `示範產品 ${letter}`, material_no: `M2600${index + 4}`, manufacturing_no: `FG-${letter}01`, pm_id: index === 1 ? 'PM01' : 'PM03', unit: '盒', demo_price: [150, 80, 120][index] }));
     data.tiers.push({ year: 2025, product_id: `P-${letter}`, tier: ['第三梯隊', '第二梯隊', '第一梯隊'][index] }, { year: 2026, product_id: `P-${letter}`, tier: ['第二梯隊', '第一梯隊', '第三梯隊'][index] });
   });
   data.targets = [{ salesperson_id: 'S001', month: '2026-09', amount: 170000, basis: 'demo_invoiced_gross' }, { salesperson_id: 'S001', month: '2026-10', amount: 180000, basis: 'demo_invoiced_gross' }];

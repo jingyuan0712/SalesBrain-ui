@@ -1,3 +1,4 @@
+import CRMQuickLink from '../components/CRMQuickLink.tsx';
 import { useState } from 'react';
 import { useApp } from '../context/AppContext.tsx';
 import { demoData } from '../data/demo/demoData.ts';
@@ -10,7 +11,7 @@ export default function CustomersPage() {
   const customer = customers.find(c => c.id === query.selectedCustomerId);
   const kpi = customer ? getCallKpi({ month: query.selectedMonth, customerId: customer.id }).rows[0] : null;
   const sales = customer ? getSalesSummary({ month: query.selectedMonth, customerId: customer.id }) : null;
-  return <div className="page-content"><div className="section-heading"><div><h1 className="page-title">客戶洞察</h1><p className="page-subtitle">沿用同一客戶資料，查看拜訪與交易，再延續到工作工具。</p></div></div>
+  return <div className="page-content"><div className="section-heading"><div><h1 className="page-title">客戶洞察</h1><p className="page-subtitle">沿用同一客戶資料，查看拜訪與交易，再延續到工作工具。</p></div><CRMQuickLink /></div>
     <div className="filter-bar"><label className="filter-field"><span>搜尋客戶</span><input className="input" value={search} onChange={e => setSearch(e.target.value)} placeholder="晨星、C001…" /></label><Select label="選擇客戶" value={query.selectedCustomerId} onChange={selectedCustomerId => updateQuery({ selectedCustomerId })} options={[{ value: '', label: '請選擇客戶' }, ...customers.map(c => ({ value: c.id, label: c.name }))]} /></div>
     {!customer && customers.length > 0 && <div className="feature-grid">{customers.map(c => { const progress = getCallKpi({ customerId: c.id, month: query.selectedMonth }).rows[0]; return <button className="card feature-card" key={c.id} onClick={() => updateQuery({ selectedCustomerId: c.id })}><span className="badge badge-blue">{c.grade} 級 · {c.channel}</span><h3>{c.name}</h3><p>{c.id} · {progress ? `本月 Call ${progress.actual}／${progress.required} 次，尚缺 ${progress.gap} 次` : '此月無 KPI 快照'}</p><span className="feature-action">查看客戶詳情</span></button>; })}</div>}
     {customer ? <><section className="card detail-card"><h2>{customer.name} · {customer.id}</h2><p>{customer.channel} · {customer.grade} 級 · {customer.region} · 歸屬 {customer.owner}</p><div className="stats-grid"><Stat label={`${query.selectedMonth} 有效拜訪`} value={kpi ? `${kpi.actual}／${kpi.required} 次` : '無要求快照'} /><Stat label="本月拜訪缺口" value={kpi ? `${kpi.gap} 次` : '未知'} /><Stat label={`${query.selectedMonth} 示範請款`} value={`NT$ ${sales?.amount.toLocaleString('zh-TW') ?? 0}`} /></div></section>

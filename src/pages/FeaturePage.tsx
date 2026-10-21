@@ -1,4 +1,6 @@
 import { useApp } from '../context/AppContext.tsx';
+import { crmFeatures } from '../domain/crmRules.ts';
+import CRMQuickLink from '../components/CRMQuickLink.tsx';
 import { features } from '../config/features.ts';
 import type { FeatureId } from '../data/demo/types.ts';
 import { CallKpiPage, SalesPage } from './features/CallSales.tsx';
@@ -10,5 +12,5 @@ export default function FeaturePage({ id }: { id: FeatureId }) {
   const { setCurrentPage } = useApp();
   const feature = features.find(f => f.id === id)!;
   const Page = pages[id];
-  return <div className="page-content"><button className="btn btn-ghost breadcrumb" onClick={() => setCurrentPage('toolbox')}>← 常用功能</button><div className="section-heading"><div><p className="eyebrow">{id} · 業務工作工具</p><h1 className="page-title">{feature.title}</h1><p className="page-subtitle">{feature.description}</p></div></div><Page /></div>;
+  return <div className="page-content"><button className="btn btn-ghost breadcrumb" onClick={() => setCurrentPage('toolbox')}>← 常用功能</button><button className="btn btn-ghost breadcrumb" onClick={() => setCurrentPage('home')}>返回首頁</button><div className="section-heading"><div><p className="eyebrow">{id} · 業務工作工具</p><h1 className="page-title">{feature.title}</h1><p className="page-subtitle">{feature.description}</p></div>{crmFeatures.includes(id) && <CRMQuickLink />}</div><Page /></div>;
 }

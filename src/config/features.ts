@@ -23,7 +23,7 @@ export const features: FeatureConfig[] = [
   { id: 'F3', group: 'administration', title: '異常訂單查詢', description: '分別查看簽核、出貨、請款與收款狀態。', enabled: true, frequent: true, datasets: ['D06', 'D07', 'D15'] },
   { id: 'F4', group: 'experience', title: '報價紀錄查詢', description: '追溯歷史價格、議價背景及原單註記。', enabled: true, frequent: false, datasets: ['D08', 'D10', 'D15'] },
   { id: 'F5', group: 'experience', title: '客戶拜訪諮詢', description: '依既有拜訪需求準備文件與進藥資料。', enabled: true, frequent: true, datasets: ['D02', 'D09', 'D10', 'D13'] },
-  { id: 'F6', group: 'experience', title: '編號與窗口查詢', description: '查詢物料、製編、PM 與指定年度梯隊。', enabled: true, frequent: false, datasets: ['D02', 'D04', 'D15'] },
+  { id: 'F6', group: 'experience', title: '編號與窗口查詢', description: '查詢物料、製編、PM、年度梯隊及產品介紹、DM 與教育訓練。', enabled: true, frequent: false, datasets: ['D02', 'D04', 'D10', 'D15'] },
   { id: 'F7', group: 'onboarding', title: 'SOP 使用手冊', description: '查閱四類作業手冊、章節與有效版本。', enabled: true, frequent: false, datasets: ['D10', 'D11'] },
   { id: 'F8', group: 'onboarding', title: '公司福利與公司簡介', description: '查看示範內容、文件版本及負責窗口。', enabled: true, frequent: false, datasets: ['D10', 'D12'] },
   { id: 'F9', group: 'onboarding', title: '進藥包', description: '辨識缺件、舊版及有效文件齊備率。', enabled: true, frequent: false, datasets: ['D10', 'D13'] },
