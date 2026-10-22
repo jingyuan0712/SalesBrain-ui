@@ -1,9 +1,10 @@
 import type { FeatureId, Grade } from '../data/demo/types.ts';
 import type { PackageOverrides } from './demoRules.ts';
 import { demoData } from '../data/demo/demoData.ts';
+import type { OaTaskType } from './oaRules.ts';
 
-export type Page = 'home' | 'tasks' | 'customers' | 'toolbox' | 'knowledge' | 'settings' | 'crm-demo' | 'training' | FeatureId;
-export interface DemoTask { id: string; name: string; customer: string; type: string; createdAt: string; dueDate: string; status: 'pending' | 'in-progress' | 'done'; priority: 'high' | 'medium' | 'low'; crmRelated?: boolean }
+export type Page = 'home' | 'tasks' | 'customers' | 'toolbox' | 'knowledge' | 'settings' | 'crm-demo' | 'oa-demo' | 'training' | FeatureId;
+export interface DemoTask { id: string; name: string; customer: string; type: string; createdAt: string; dueDate: string; status: 'pending' | 'in-progress' | 'done'; priority: 'high' | 'medium' | 'low'; crmRelated?: boolean; oaTaskType?: OaTaskType }
 export interface QueryState {
   selectedCustomerId: string; selectedProductId: string; selectedMonth: string; selectedYear: number | null;
   selectedDoctorId: string; orderId: string; grade: Grade | ''; callStatus: '' | 'zero' | 'reached' | 'unreached';
@@ -31,7 +32,7 @@ export function initialTasks(): DemoTask[] {
 }
 export function parsePage(hash: string): Page {
   const value = hash.replace(/^#\/?/, '').split('?')[0];
-  return ['home', 'tasks', 'customers', 'toolbox', 'knowledge', 'settings', 'crm-demo', 'training', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9'].includes(value) ? value as Page : 'home';
+  return ['home', 'tasks', 'customers', 'toolbox', 'knowledge', 'settings', 'crm-demo', 'oa-demo', 'training', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9'].includes(value) ? value as Page : 'home';
 }
 export function restoreDemo(raw: string | null): SavedDemo {
   const fallback = { query: initialQuery(), tasks: initialTasks(), recent: [] };

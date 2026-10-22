@@ -1,5 +1,5 @@
 .mobile-header, .mobile-nav { display: none; }
-.crm-quick-link { white-space: nowrap; }
+.system-quick-link { white-space: nowrap; }
 .product-resource-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .product-resource-grid h3, .product-answer h3 { font-size: 14px; line-height: 1.7; }
 .product-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }

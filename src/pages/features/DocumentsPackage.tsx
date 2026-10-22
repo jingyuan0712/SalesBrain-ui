@@ -5,6 +5,8 @@ import { getPackageSummary, applyPackageReplacement, formatPercentage } from '..
 import { Select, SharedFilters, DocumentPreview, Empty, SourceNote, Stat, documentStatus, customerName, productName } from '../../components/DemoUI.tsx';
 import { crmSopIds } from '../../domain/crmRules.ts';
 import CRMQuickLink from '../../components/CRMQuickLink.tsx';
+import SystemQuickLink from '../../components/SystemQuickLink.tsx';
+import { oaTypeForSop } from '../../domain/oaRules.ts';
 import SopTutorial from '../../components/SopTutorial.tsx';
 export function SopPage() {
   const { query, updateQuery } = useApp();
@@ -16,7 +18,7 @@ export function SopPage() {
   const steps = doc.text.replace(/^示範：/, '').split('。')[0].split(' → ');
   return <><div className="filter-bar"><label className="filter-field"><span>搜尋 SOP</span><input className="input" value={search} onChange={e => setSearch(e.target.value)} placeholder="折讓、折扣、CRM、溢收款…" /></label></div>
     <div className="tab-list">{sops.map(d => <button key={d.id} className={`tab-item ${doc.id === d.id ? 'active' : ''}`} onClick={() => updateQuery({ sopId: d.id })}>{d.title.replace('示範', '')}</button>)}</div>
-    {sops.length ? <section className="card detail-card"><div className="section-heading"><h2>{doc.title}</h2>{crmSopIds.includes(doc.id) && <CRMQuickLink />}</div><p>v{doc.version} · {documentStatus(doc.status)} · 更新 {doc.updated_at} · {doc.owner}</p><details open><summary>章節列表 · {doc.locator}</summary><ol className="sop-steps">{steps.map((step, i) => <li key={i}>{step}</li>)}</ol></details><p className="notice">以上為虛構準備流程，正式依企業核准 SOP；不執行核價、送簽或財務沖單。</p><button className="btn btn-secondary" onClick={() => setPreview(doc.id)}>預覽手冊原文</button>{demoData.videos.some(video => video.doc_id === doc.id) && <SopTutorial key={doc.id} docId={doc.id} />}
+    {sops.length ? <section className="card detail-card"><div className="section-heading"><h2>{doc.title}</h2><div className="action-row">{crmSopIds.includes(doc.id) && <CRMQuickLink />}{oaTypeForSop(doc.id) && <SystemQuickLink system="OA" taskType={oaTypeForSop(doc.id)} returnPath={`#/F7?sop=${doc.id}`} />}</div></div><p>v{doc.version} · {documentStatus(doc.status)} · 更新 {doc.updated_at} · {doc.owner}</p><details open><summary>章節列表 · {doc.locator}</summary><ol className="sop-steps">{steps.map((step, i) => <li key={i}>{step}</li>)}</ol></details><p className="notice">以上為虛構準備流程，正式依企業核准 SOP；不執行核價、送簽或財務沖單。</p><button className="btn btn-secondary" onClick={() => setPreview(doc.id)}>預覽手冊原文</button>{demoData.videos.some(video => video.doc_id === doc.id) && <SopTutorial key={doc.id} docId={doc.id} />}
       <SourceNote systems="OA／知識文件" ids={[doc.id, ...demoData.videos.filter(video => video.doc_id === doc.id).map(video => `${video.id}（以可操作圖文動畫呈現）`)]} updated={doc.updated_at} />
     </section> : <Empty>沒有匹配的 SOP，請選擇已提供分類。</Empty>}
     <section className="card detail-card"><h2>產品 B 文件版本</h2><div className="filter-bar"><Select label="查看版本" value={dmId} onChange={setDmId} options={[{ value: 'DOC-DM2', label: '新版 DM v2.0 · 目前有效' }, { value: 'DOC-DM1', label: '舊版 DM v1.0 · 已被取代' }]} /><button className="btn btn-secondary" onClick={() => setPreview(dmId)}>預覽此版本</button></div><p>{demoData.documents.find(d => d.id === dmId)?.text}</p><p className="text-muted">新版發布於 2026-10-15；舊版僅供追溯，不作準備文件預設。</p></section>

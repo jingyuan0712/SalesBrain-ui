@@ -23,7 +23,11 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 const storageKey = 'salesbrain-demo-v1';
 function readSaved() { try { return restoreDemo(localStorage.getItem(storageKey)); } catch { return restoreDemo(null); } }
-function productRoutePatch(hash: string): Partial<QueryState> {
+function routeQueryPatch(hash: string): Partial<QueryState> {
+  if (parsePage(hash) === 'F7') {
+    const sopId = new URLSearchParams(hash.split('?')[1]).get('sop');
+    return demoData.documents.some(doc => doc.id === sopId && doc.type === 'sop') ? { sopId: sopId! } : {};
+  }
   const id = routeProductId(hash);
   return parsePage(hash) === 'F6' && id !== null ? { selectedProductId: demoData.products.some(p => p.id === id) ? id : '' } : {};
 }
@@ -33,14 +37,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [saved] = useState(readSaved);
   const [routeHash, setRouteHash] = useState(location.hash);
   const currentPage = parsePage(routeHash);
-  const [query, setQuery] = useState<QueryState>(() => ({ ...saved.query, ...productRoutePatch(location.hash) }));
+  const [query, setQuery] = useState<QueryState>(() => ({ ...saved.query, ...routeQueryPatch(location.hash) }));
   const [tasks, setTasks] = useState<DemoTask[]>(saved.tasks);
   const [recent, setRecent] = useState(saved.recent);
   const [resetVersion, setResetVersion] = useState(0);
   const [presetQuestion, setPresetQuestion] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
   useEffect(() => {
-    const onHash = () => { setRouteHash(location.hash); setQuery(prev => ({ ...prev, ...productRoutePatch(location.hash) })); };
+    const onHash = () => { setRouteHash(location.hash); setQuery(prev => ({ ...prev, ...routeQueryPatch(location.hash) })); };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
@@ -56,6 +60,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (currentPage === 'F6' && patch.selectedProductId !== undefined) {
       const hash = productDetailRoute(patch.selectedProductId); setRouteHash(hash); location.hash = hash;
     }
+    if (currentPage === 'F7' && patch.sopId !== undefined) {
+      const hash = `#/F7?sop=${encodeURIComponent(patch.sopId)}`; setRouteHash(hash); location.hash = hash;
+    }
     setQuery(prev => ({ ...prev, ...patch,
     ...(patch.selectedCustomerId !== undefined && patch.selectedCustomerId !== prev.selectedCustomerId && patch.selectedDoctorId === undefined ? { selectedDoctorId: '' } : {}),
   })); }, [currentPage]);
@@ -70,8 +77,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (id === 'F6') {
       const hash = productDetailRoute(patch.selectedProductId ?? (query.selectedProductId || 'P-B'));
       setRouteHash(hash); location.hash = hash;
+    } else if (id === 'F7') {
+      const hash = `#/F7?sop=${encodeURIComponent(patch.sopId ?? query.sopId)}`;
+      setRouteHash(hash); location.hash = hash;
     } else setCurrentPage(id);
-  }, [setCurrentPage, query.selectedProductId]);
+  }, [setCurrentPage, query.selectedProductId, query.sopId]);
   const addToast = useCallback((message: string, type: Toast['type'] = 'success', targetPage?: Page) => {
     const id = crypto.randomUUID();
     setToasts(prev => [...prev, { id, message, type, targetPage }]);

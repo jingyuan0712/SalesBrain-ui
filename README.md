@@ -22,6 +22,8 @@ npm run build
 
 ## 決賽資料基礎
 
+- [OA 快速跳轉交付](docs/oa-delivery.md)：OA 入口範圍、共用 SystemQuickLink、作業與返回參數、正式 OA 設定及驗證方式。
+
 - [CRM 快速跳轉、產品資訊與首頁 AI 查詢交付](docs/product-crm-delivery.md)：新增元件、完整修改清單、CRM 按鈕範圍、正式連結替換與瀏覽器驗證方式。
 
 - [本次完整交付、檔案清單與測試結果](docs/demo-delivery.md)

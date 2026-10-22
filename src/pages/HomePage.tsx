@@ -10,6 +10,8 @@ import { FeatureCard, Select, SourceNote } from '../components/DemoUI.tsx';
 import { ProductAnswer } from '../components/ProductInfo.tsx';
 import { crmFeatures, crmSopIds } from '../domain/crmRules.ts';
 import CRMQuickLink from '../components/CRMQuickLink.tsx';
+import SystemQuickLink from '../components/SystemQuickLink.tsx';
+import { oaTypeForSop } from '../domain/oaRules.ts';
 
 export default function HomePage() {
   const { query, updateQuery, openFeature, recordQuery, recent, setCurrentPage, setTasks, addToast, presetQuestion } = useApp();
@@ -26,6 +28,7 @@ export default function HomePage() {
   const product = result?.intent === 'product_info' && !result.required.length && !result.special
     ? demoData.products.find(p => p.id === query.selectedProductId) : undefined;
   const crmRelated = !!result?.feature && (crmFeatures.includes(result.feature) || (result.feature === 'F7' && crmSopIds.includes(query.sopId)) || (result.feature === 'F6' && question.includes('客戶編號')));
+  const oaTaskType = result?.feature === 'F7' && !result.special?.startsWith('unknown') ? oaTypeForSop(query.sopId) : undefined;
   function send(text = input) {
     if (!text.trim() || pending) return;
     setQuestion(text.trim()); setPending(true); setRoute(null); setSupplement({});
@@ -53,8 +56,8 @@ export default function HomePage() {
         : field === 'year' ? <Select key={field} label="補充年度" value={String(supplement.selectedYear ?? '')} onChange={v => setSupplement(s => ({ ...s, selectedYear: v ? Number(v) : null }))} options={[{ value: '', label: '請選擇年度' }, { value: '2025', label: '2025' }, { value: '2026', label: '2026' }]} />
         : <Select key={field} label={field === 'customer' ? '補充客戶' : '補充產品'} value={(field === 'customer' ? supplement.selectedCustomerId : supplement.selectedProductId) ?? ''} onChange={v => setSupplement(s => ({ ...s, [field === 'customer' ? 'selectedCustomerId' : 'selectedProductId']: v }))} options={[{ value: '', label: '請選擇' }, ...(field === 'customer' ? demoData.customers : demoData.products).map(x => ({ value: x.id, label: x.name }))]} />)}<button className="btn btn-primary" disabled={!missingValid} onClick={complete}>確認條件並查詢</button></div>}
       {result.intent !== 'product_info' && result.sources.length > 0 && <SourceNote systems={result.feature === 'F1' || result.feature === 'F5' ? 'CRM／知識文件' : ['F7', 'F8', 'F9'].includes(result.feature ?? '') ? 'OA／知識文件' : 'SAP／CRM／知識文件'} ids={result.sources} updated={result.updatedAt} />}
-      {result.feature && !result.required.length && !result.special?.startsWith('unknown') && <div className="action-row">{result.intent !== 'product_info' && <button className="btn btn-primary" onClick={() => openFeature(result.feature!)}>查看完整{features.find(f => f.id === result.feature)?.title}<ArrowRight size={15} /></button>}<button className="btn btn-secondary" onClick={() => { setTasks(ts => [{ id: crypto.randomUUID(), name: question, customer: demoData.customers.find(c => c.id === query.selectedCustomerId)?.name ?? '', type: '查詢追蹤', crmRelated, createdAt: '2026-10-20', dueDate: '', status: 'pending', priority: 'medium' }, ...ts]); addToast('已儲存至本地示範任務。'); }}>儲存為任務</button></div>}
-      {crmRelated && !result.required.length && <div className="action-row"><CRMQuickLink /></div>}
+      {result.feature && !result.required.length && !result.special?.startsWith('unknown') && <div className="action-row">{result.intent !== 'product_info' && <button className="btn btn-primary" onClick={() => openFeature(result.feature!)}>查看完整{features.find(f => f.id === result.feature)?.title}<ArrowRight size={15} /></button>}<button className="btn btn-secondary" onClick={() => { setTasks(ts => [{ id: crypto.randomUUID(), name: question, customer: demoData.customers.find(c => c.id === query.selectedCustomerId)?.name ?? '', type: '查詢追蹤', crmRelated, oaTaskType, createdAt: '2026-10-20', dueDate: '', status: 'pending', priority: 'medium' }, ...ts]); addToast('已儲存至本地示範任務。'); }}>儲存為任務</button></div>}
+      {(crmRelated || oaTaskType) && !result.required.length && <div className="action-row">{crmRelated && <CRMQuickLink />}{oaTaskType && <SystemQuickLink system="OA" taskType={oaTaskType} returnPath="#/home" />}</div>}
       {result.special?.startsWith('unknown') && <button className="btn btn-secondary" onClick={() => setCurrentPage('toolbox')}>到常用功能選擇查詢條件</button>}
       {!result.feature && <div className="prompt-chips">{demoQuestions.map(q => <button key={q} onClick={() => send(q)}>{q}</button>)}</div>}
     </section>}

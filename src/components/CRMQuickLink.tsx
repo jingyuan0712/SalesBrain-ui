@@ -1,6 +1,5 @@
-import { ExternalLink } from 'lucide-react';
-import { CRM_URL, resourceHref } from '../config/links.ts';
+import SystemQuickLink from './SystemQuickLink.tsx';
 
 export default function CRMQuickLink() {
-  return <a className="btn btn-secondary crm-quick-link" href={resourceHref(CRM_URL)} target="_blank" rel="noopener noreferrer">前往 CRM 系統 <ExternalLink size={15} aria-hidden="true" /></a>;
+  return <SystemQuickLink system="CRM" />;
 }

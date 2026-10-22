@@ -21,7 +21,7 @@ export default function MobileNavigation() {
   const activePage = /^F[1-9]$/.test(currentPage) ? 'toolbox' : currentPage;
   const title = features.find(feature => feature.id === currentPage)?.title
     ?? items.find(item => item.id === currentPage)?.label
-    ?? (currentPage === 'crm-demo' ? 'CRM 模擬畫面' : currentPage === 'training' ? '影音教育訓練' : 'SalesBrain');
+    ?? (currentPage === 'crm-demo' ? 'CRM 模擬畫面' : currentPage === 'oa-demo' ? 'OA 行政作業系統' : currentPage === 'training' ? '影音教育訓練' : 'SalesBrain');
   function navigate(page: Page) { setOpen(false); setCurrentPage(page); }
 
   return <>

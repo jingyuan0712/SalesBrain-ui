@@ -12,6 +12,7 @@ import ToolboxPage from './pages/ToolboxPage';
 import FeaturePage from './pages/FeaturePage';
 import SettingsPage from './pages/SettingsPage';
 import DemoResourcePage from './pages/DemoResourcePage';
+import OaDemoPage from './pages/OaDemoPage';
 import { Zap } from 'lucide-react';
 import type { FeatureId } from './data/demo/types.ts';
 import './index.css';
@@ -28,6 +29,7 @@ function AppContent() {
     <MobileNavigation />
     <PageBoundary key={`${currentPage}-${resetVersion}`}>
       {(currentPage === 'crm-demo' || currentPage === 'training') && <DemoResourcePage />}
+      {currentPage === 'oa-demo' && <OaDemoPage />}
       {currentPage === 'home' && <HomePage />}{currentPage === 'tasks' && <TasksPage />}{currentPage === 'customers' && <CustomersPage />}{currentPage === 'knowledge' && <KnowledgePage />}{currentPage === 'toolbox' && <ToolboxPage />}{currentPage === 'settings' && <SettingsPage />}{/^F[1-9]$/.test(currentPage) && <FeaturePage id={currentPage as FeatureId} />}
     </PageBoundary></main><ToastContainer /></div>;
 }
